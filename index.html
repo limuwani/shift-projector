@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4-on 4-off Shift Projector</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--ink:#132238;--muted:#6e7a8a;--line:#dfe5ec;--day:#dff3e6;--dayInk:#1d6a39;--night:#e8e4fb;--nightInk:#493a8f;--off:#eef1f5;--offInk:#6c7786;--accent:#1f5eff;--danger:#b42318}
+*{box-sizing:border-box} body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+.wrap{max-width:1280px;margin:auto;padding:24px}.hero{background:linear-gradient(135deg,#132238,#1e3f68);color:#fff;padding:28px;border-radius:22px;margin-bottom:20px}
+.hero h1{margin:0 0 8px;font-size:30px}.hero p{margin:0;color:#d7e3f4;line-height:1.5}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 8px 24px rgba(24,39,75,.06);margin-bottom:20px}
+.controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:end}
+label{display:block;font-size:12px;font-weight:700;margin-bottom:6px;color:var(--muted)}
+input,select,button{width:100%;padding:12px 13px;border:1px solid #cfd7e2;border-radius:11px;font-size:14px;background:#fff;color:var(--ink)}
+button{background:var(--accent);color:#fff;border:0;font-weight:700;cursor:pointer}.secondary{background:#fff;color:var(--ink);border:1px solid #cfd7e2}
+.actions{display:flex;gap:10px;margin-top:12px}.legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:15px}
+.pill{padding:7px 10px;border-radius:999px;font-size:12px;font-weight:700}.pill.day{background:var(--day);color:var(--dayInk)}.pill.night{background:var(--night);color:var(--nightInk)}.pill.off{background:var(--off);color:var(--offInk)}
+.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px}.stat{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px}.stat b{display:block;font-size:26px;margin-top:5px}
+.months{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.month{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;overflow:hidden}
+.month h3{margin:0 0 10px;font-size:17px}.week,.days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.week span{font-size:10px;color:var(--muted);text-align:center;padding:4px 0;font-weight:700}
+.cell{min-height:58px;border:1px solid #edf0f4;border-radius:9px;padding:5px;font-size:11px;display:flex;flex-direction:column;justify-content:space-between}.blank{border-color:transparent;background:transparent}
+.date{font-weight:800;font-size:12px}.shift{font-size:10px;font-weight:800}.cell.day{background:var(--day);color:var(--dayInk)}.cell.night{background:var(--night);color:var(--nightInk)}.cell.off{background:var(--off);color:var(--offInk)}
+.note{font-size:12px;color:var(--muted);line-height:1.5;margin-top:10px}.error{color:var(--danger);font-size:13px;margin-top:10px;display:none}
+@media(max-width:900px){.months{grid-template-columns:1fr 1fr}.controls,.summary{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.months,.controls,.summary{grid-template-columns:1fr}.wrap{padding:12px}}
+@media print{.hero,.controls,.actions,.note,.legend{display:none!important}body{background:#fff}.wrap{max-width:none;padding:0}.panel{border:0;box-shadow:none;padding:0}.months{grid-template-columns:repeat(3,1fr);gap:8px}.month{break-inside:avoid;padding:8px}.cell{min-height:42px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <h1>4-on / 4-off Shift Projector</h1>
+    <p>Pattern: <b>2 day shifts → 2 night shifts → 4 days off</b>. Enter one shift date you already know, and the whole year is calculated automatically.</p>
+  </div>
+
+  <div class="panel">
+    <div class="controls">
+      <div><label>Year to project</label><input id="year" type="number" min="2020" max="2100"></div>
+      <div><label>Known date</label><input id="anchorDate" type="date"></div>
+      <div><label>Shift on that known date</label>
+        <select id="anchorShift">
+          <option value="0">Day shift 1</option><option value="1">Day shift 2</option>
+          <option value="2">Night shift 1</option><option value="3">Night shift 2</option>
+          <option value="4">Off day 1</option><option value="5">Off day 2</option>
+          <option value="6">Off day 3</option><option value="7">Off day 4</option>
+        </select>
+      </div>
+      <div><button onclick="generate()">Generate Year</button></div>
+    </div>
+    <div class="actions">
+      <button class="secondary" onclick="window.print()">Print / Save PDF</button>
+      <button class="secondary" onclick="downloadCSV()">Download CSV</button>
+    </div>
+    <div class="legend"><span class="pill day">Day shift</span><span class="pill night">Night shift</span><span class="pill off">Off</span></div>
+    <div id="error" class="error"></div>
+    <div class="note">You only need one date that is definitely known. Example: if 5 January is their first day shift, select that date and “Day shift 1”. The app repeats the 8-day cycle forward and backward.</div>
+  </div>
+
+  <div class="summary">
+    <div class="stat">Day shifts<b id="daysCount">0</b></div>
+    <div class="stat">Night shifts<b id="nightsCount">0</b></div>
+    <div class="stat">Off days<b id="offCount">0</b></div>
+    <div class="stat">Work days total<b id="workCount">0</b></div>
+  </div>
+
+  <div id="months" class="months"></div>
+</div>
+
+<script>
+const pattern=[
+{name:"Day 1",type:"day"},{name:"Day 2",type:"day"},
+{name:"Night 1",type:"night"},{name:"Night 2",type:"night"},
+{name:"Off 1",type:"off"},{name:"Off 2",type:"off"},
+{name:"Off 3",type:"off"},{name:"Off 4",type:"off"}];
+let currentRows=[];
+
+function isoDate(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
+function dayDiff(a,b){return Math.round((Date.UTC(a.getFullYear(),a.getMonth(),a.getDate())-Date.UTC(b.getFullYear(),b.getMonth(),b.getDate()))/86400000);}
+function mod(n,m){return ((n%m)+m)%m;}
+function shiftForDate(date,anchorDate,anchorIndex){return pattern[mod(anchorIndex+dayDiff(date,anchorDate),8)];}
+
+function generate(){
+  const year=parseInt(document.getElementById("year").value);
+  const anchorRaw=document.getElementById("anchorDate").value;
+  const anchorIndex=parseInt(document.getElementById("anchorShift").value);
+  const err=document.getElementById("error"); err.style.display="none";
+  if(!year||!anchorRaw){err.textContent="Please choose the year and one known shift date.";err.style.display="block";return;}
+  const [ay,am,ad]=anchorRaw.split("-").map(Number);
+  const anchorDate=new Date(ay,am-1,ad);
+  const container=document.getElementById("months"); container.innerHTML=""; currentRows=[];
+  let dayCount=0,nightCount=0,offCount=0;
+  const weekdays=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+  for(let month=0;month<12;month++){
+    const box=document.createElement("div");box.className="month";
+    const title=document.createElement("h3");title.textContent=new Date(year,month,1).toLocaleString(undefined,{month:"long",year:"numeric"});box.appendChild(title);
+    const week=document.createElement("div");week.className="week";
+    weekdays.forEach(w=>{const s=document.createElement("span");s.textContent=w;week.appendChild(s)});box.appendChild(week);
+    const grid=document.createElement("div");grid.className="days";
+    let first=(new Date(year,month,1).getDay()+6)%7;
+    for(let i=0;i<first;i++){const blank=document.createElement("div");blank.className="cell blank";grid.appendChild(blank);}
+    const numDays=new Date(year,month+1,0).getDate();
+    for(let d=1;d<=numDays;d++){
+      const date=new Date(year,month,d);const shift=shiftForDate(date,anchorDate,anchorIndex);
+      const cell=document.createElement("div");cell.className=`cell ${shift.type}`;
+      const num=document.createElement("div");num.className="date";num.textContent=d;
+      const sh=document.createElement("div");sh.className="shift";sh.textContent=shift.name;
+      cell.appendChild(num);cell.appendChild(sh);grid.appendChild(cell);
+      if(shift.type==="day")dayCount++; else if(shift.type==="night")nightCount++; else offCount++;
+      currentRows.push({date:isoDate(date),day:date.toLocaleDateString(undefined,{weekday:"long"}),shift:shift.name,category:shift.type==="off"?"Off":"Work"});
+    }
+    box.appendChild(grid);container.appendChild(box);
+  }
+  document.getElementById("daysCount").textContent=dayCount;
+  document.getElementById("nightsCount").textContent=nightCount;
+  document.getElementById("offCount").textContent=offCount;
+  document.getElementById("workCount").textContent=dayCount+nightCount;
+  localStorage.setItem("shiftProjector",JSON.stringify({year,anchorRaw,anchorIndex}));
+}
+
+function downloadCSV(){
+  if(!currentRows.length)generate();
+  if(!currentRows.length)return;
+  const lines=[["Date","Day","Shift","Status"]];
+  currentRows.forEach(r=>lines.push([r.date,r.day,r.shift,r.category]));
+  const csv=lines.map(row=>row.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  const url=URL.createObjectURL(blob);const a=document.createElement("a");
+  a.href=url;a.download=`shift-calendar-${document.getElementById("year").value}.csv`;a.click();URL.revokeObjectURL(url);
+}
+
+(function(){
+  const now=new Date();document.getElementById("year").value=now.getFullYear();
+  const saved=localStorage.getItem("shiftProjector");
+  if(saved){try{const s=JSON.parse(saved);document.getElementById("year").value=s.year||now.getFullYear();document.getElementById("anchorDate").value=s.anchorRaw||"";document.getElementById("anchorShift").value=String(s.anchorIndex??0);if(s.anchorRaw)generate();}catch(e){}}
+})();
+</script>
+</body></html>
